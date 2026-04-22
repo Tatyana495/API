@@ -1,64 +1,84 @@
 # llm-p
 
-Защищённый API для работы с большой языковой моделью через **FastAPI**.
+Защищённый backend API для работы с большой языковой моделью через **FastAPI** и **OpenRouter**.
 
-Приложение поддерживает:
-- регистрацию и аутентификацию пользователей;
-- получение JWT-токена;
-- вызов LLM через **OpenRouter**;
+## Описание проекта
+
+Приложение реализует:
+- регистрацию пользователя;
+- аутентификацию и выдачу JWT access token;
+- доступ к защищённым эндпоинтам через авторизацию в Swagger;
+- отправку запросов к LLM через OpenRouter;
 - сохранение истории диалога;
-- тестирование эндпоинтов через **Swagger UI**.
+- получение и удаление истории сообщений.
 
-## Возможности
+## Стек технологий
 
-- регистрация пользователя по email и паролю;
-- вход в систему с получением `access_token`;
-- доступ к защищённым эндпоинтам по JWT;
-- отправка запросов к LLM через OpenRouter;
-- сохранение истории сообщений пользователя;
-- просмотр истории диалога;
-- очистка истории диалога.
-
-## Технологии
-
-- Python
+- Python 3.12
 - FastAPI
 - Uvicorn
-- Pydantic / pydantic-settings
-- JWT
+- Pydantic
+- pydantic-settings
+- SQLAlchemy
 - SQLite
+- Passlib / bcrypt
+- JWT
 - OpenRouter API
+- uv
+
+---
+
+## Структура проекта
+
+```text
+app/
+├── api/            # эндпоинты и dependency injection
+├── core/           # конфигурация, безопасность, ошибки
+├── db/             # база данных, модели, сессии
+├── repositories/   # слой доступа к данным
+├── schemas/        # Pydantic-схемы запросов и ответов
+├── services/       # внешние сервисы, в т.ч. OpenRouter
+├── usecases/       # бизнес-логика приложения
+└── main.py         # точка входа FastAPI
+```
+
+---
 
 ## Конфигурация
 
-Настройки читаются из файла `.env`.
+Проект использует настройки из файла `.env`.
 
-Пример:
+Создайте `.env` в корне проекта:
 
 ```env
 APP_NAME=llm-p
-ENVIRONMENT=local
+ENVIRONMENT=dev
 
-JWT_SECRET_KEY=change_me_super_secret
+JWT_SECRET_KEY=change-me
 JWT_ALGORITHM=HS256
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 SQLITE_PATH=app.db
 
+CORS_ENABLED=true
+CORS_ALLOW_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]
+
 OPENROUTER_API_KEY=your_openrouter_api_key
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=stepfun/step-3.5-flash:free
-OPENROUTER_REFERER=https://example.com
-OPENROUTER_TITLE=llm-fastapi-openrouter
+OPENROUTER_MODEL=openrouter/free
+OPENROUTER_REFERER=http://localhost:8000
+OPENROUTER_TITLE=llm-p
 ```
 
-## Установка и запуск
+---
 
-### 1. Клонирование проекта
+## Установка и запуск проекта через uv
+
+### 1. Клонирование репозитория
 
 ```bash
-git clone <repo_url>
-cd llm-p
+git clone https://github.com/Tatyana495/API.git
+cd API
 ```
 
 ### 2. Создание виртуального окружения
@@ -67,10 +87,9 @@ cd llm-p
 uv venv
 ```
 
-### 3. Активация окружения
+### 3. Активация виртуального окружения
 
-Windows PowerShell:
-
+**Windows PowerShell**
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
@@ -78,7 +97,8 @@ Windows PowerShell:
 ### 4. Установка зависимостей
 
 ```bash
-uv sync
+uv pip compile pyproject.toml -o requirements.txt
+uv pip install -r requirements.txt
 ```
 
 ### 5. Запуск приложения
@@ -88,35 +108,36 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 После запуска будут доступны:
-
-- API: `http://127.0.0.1:8000`
 - Swagger UI: `http://127.0.0.1:8000/docs`
+- OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
+
+---
 
 ## Основные эндпоинты
 
 ### Аутентификация
 
 #### `POST /auth/register`
-Регистрация пользователя.
+Регистрация нового пользователя.
 
-Пример запроса:
+Пример тела запроса:
 
 ```json
 {
-  "email": "user@example.com",
-  "password": "Qwerty123!"
+  "email": "student_demyanov@email.com",
+  "password": "12345678"
 }
 ```
 
 #### `POST /auth/login`
-Вход в систему и получение JWT-токена.
+Вход в систему и получение JWT access token.
 
-Используется форма `application/x-www-form-urlencoded`.
+Используется `application/x-www-form-urlencoded`.
 
-Поля:
+Поля формы:
 - `grant_type=password`
-- `username=<email>`
-- `password=<пароль>`
+- `username=student_demyanov@email.com`
+- `password=12345678`
 
 Пример ответа:
 
@@ -137,99 +158,174 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### Чат
 
 #### `POST /chat`
-Отправка запроса в LLM.
+Отправка запроса к LLM через OpenRouter.
 
 Требует авторизацию.
 
-Минимальный пример:
+Пример тела запроса:
 
 ```json
 {
-  "prompt": "Привет! Напиши короткое приветствие."
-}
-```
-
-Расширенный пример:
-
-```json
-{
-  "prompt": "Что ты умеешь? Ответь в 2 предложениях.",
-  "system": "Отвечай кратко и понятно.",
+  "prompt": "Привет! Ответь одной короткой фразой.",
+  "system": "Ты полезный ассистент.",
   "max_history": 10,
   "temperature": 0.7
 }
 ```
 
-Что происходит при вызове:
-1. сервер принимает запрос пользователя;
-2. при необходимости добавляет историю в контекст;
-3. отправляет запрос во внешний сервис OpenRouter;
-4. получает ответ модели;
-5. возвращает ответ клиенту;
-6. сохраняет диалог в истории.
-
 Пример ответа:
 
 ```json
 {
-  "answer": "Привет! Рад помочь."
+  "answer": "Привет! Чем я могу тебе помочь?"
 }
 ```
 
 #### `GET /chat/history`
-Получение истории диалога пользователя.
+Получение истории диалога текущего пользователя.
 
 Требует авторизацию.
 
 #### `DELETE /chat/history`
-Очистка истории диалога пользователя.
+Удаление истории диалога текущего пользователя.
 
 Требует авторизацию.
 
-## Как протестировать через Swagger
+---
 
-1. Открой `http://127.0.0.1:8000/docs`
-2. Выполни `POST /auth/register`
-3. Выполни `POST /auth/login`
-4. Нажми **Authorize**
-5. Проверь `GET /auth/me`
-6. Выполни `POST /chat`
-7. Проверь `GET /chat/history`
+## Проверка работы проекта через Swagger
 
-## Примеры запросов
+После запуска открой:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Порядок проверки:
+1. Выполнить `POST /auth/register`
+2. Выполнить `POST /auth/login`
+3. Нажать кнопку **Authorize**
+4. Выполнить `GET /auth/me`
+5. Выполнить `POST /chat`
+6. Выполнить `GET /chat/history`
+7. Выполнить `DELETE /chat/history`
+
+Для демонстрации на скриншотах используется email:
+
+```text
+student_demyanov@email.com
+```
+
+---
+
+## Демонстрация работы эндпоинтов
+
+### 1. Регистрация пользователя `POST /auth/register`
+
+Используемый email: `student_demyanov@email.com`
+
+![Регистрация пользователя](images/register.png)
+
+---
+
+### 2. Логин и получение JWT `POST /auth/login`
+
+На скриншоте должен быть виден `access_token`.
+
+![Логин и JWT](images/login.png)
+
+---
+
+### 3. Авторизация через Swagger
+
+На скриншоте должна быть видна успешная авторизация через кнопку **Authorize**.
+
+![Авторизация в Swagger](images/authorize.png)
+
+---
+
+### 4. Вызов `POST /chat`
+
+На скриншоте должен быть виден успешный ответ модели.
+
+![Вызов POST /chat](images/chat_post.png)
+
+---
+
+### 5. Получение истории `GET /chat/history`
+
+На скриншоте должна быть видна сохранённая история диалога.
+
+![Получение истории](images/chat_history.png)
+
+---
+
+### 6. Удаление истории `DELETE /chat/history`
+
+На скриншоте должен быть виден код ответа `204 No Content`.
+
+![Удаление истории](images/chat_delete.png)
+
+---
+
+### 7. Проверка очистки истории `GET /chat/history`
+
+На скриншоте должно быть видно, что история очищена.
+
+![Пустая история после удаления](images/chat_history_empty.png)
+
+---
+
+## Примеры curl-запросов
 
 ### Регистрация
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"Qwerty123!"}'
+  -d "{\"email\":\"student_demyanov@email.com\",\"password\":\"12345678\"}"
 ```
 
-### Вход
+### Логин
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password&username=user@example.com&password=Qwerty123!"
+  -d "grant_type=password&username=student_demyanov@email.com&password=12345678"
 ```
 
-### Запрос к LLM
+### Вызов чата
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/chat" \
   -H "Authorization: Bearer <your_jwt_token>" \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"Привет! Напиши короткое приветствие."}'
+  -d "{\"prompt\":\"Привет! Ответь одной короткой фразой.\",\"system\":\"Ты полезный ассистент.\",\"max_history\":10,\"temperature\":0.7}"
 ```
+
+### Получение истории
+
+```bash
+curl -X GET "http://127.0.0.1:8000/chat/history" \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+### Удаление истории
+
+```bash
+curl -X DELETE "http://127.0.0.1:8000/chat/history" \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
 
 ## Возможные ошибки
 
-### `409 Conflict`
-Пользователь с таким email уже зарегистрирован.
-
 ### `401 Unauthorized`
-Токен отсутствует, неверен или истёк.
+Токен отсутствует, недействителен или истёк.
+
+### `409 Conflict`
+Пользователь с таким email уже существует.
 
 ### `422 Validation Error`
 Некорректный формат входных данных.
@@ -238,26 +334,19 @@ curl -X POST "http://127.0.0.1:8000/chat" \
 Ошибка при обращении к OpenRouter.
 
 Возможные причины:
-- отсутствует `OPENROUTER_API_KEY`;
+- не задан `OPENROUTER_API_KEY`;
 - неверный API-ключ;
-- приложение не может подключиться к OpenRouter;
-- ошибка в конфигурации модели или URL.
+- недоступна выбранная модель;
+- ошибка сети при обращении к OpenRouter.
 
-## Проверка загрузки конфигурации
+---
 
-При необходимости можно временно вывести в `config.py` диагностическую информацию:
+## Результат
 
-```python
-print("OPENROUTER_API_KEY exists:", bool(settings.openrouter_api_key))
-print("OPENROUTER_API_KEY len:", len(settings.openrouter_api_key or ""))
-print("OPENROUTER_BASE_URL:", settings.openrouter_base_url)
-print("OPENROUTER_MODEL:", settings.openrouter_model)
-```
-
-## Назначение проекта
-
-Проект демонстрирует реализацию защищённого backend API для интеграции с LLM и может использоваться как учебный пример приложения с:
-- JWT-аутентификацией;
-- внешней LLM-интеграцией;
-- хранением истории запросов;
-- документацией через Swagger.
+Проект демонстрирует:
+- корректную структуру FastAPI-приложения;
+- разделение на слои `api / usecases / repositories / services`;
+- JWT-аутентификацию и авторизацию;
+- работу с внешним LLM API через OpenRouter;
+- сохранение истории запросов пользователя;
+- тестирование эндпоинтов через Swagger UI.
