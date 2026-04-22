@@ -19,11 +19,14 @@ class OpenRouterClient:
         messages: list[dict[str, str]],
         temperature: float = 0.7,
     ) -> str:
+        if not self._api_key:
+            raise ExternalServiceError("OPENROUTER_API_KEY is not set")
+
         url = f"{self._base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "HTTP-Referer": self._referer,
-            "X-Title": self._title,
+            "X-OpenRouter-Title": self._title,
             "Content-Type": "application/json",
         }
         payload = {
@@ -41,19 +44,44 @@ class OpenRouterClient:
                 )
         except httpx.HTTPError as exc:
             raise ExternalServiceError(
-                "Failed to connect to OpenRouter"
+                f"Failed to connect to OpenRouter: {exc}"
             ) from exc
 
         if response.status_code >= 400:
             raise ExternalServiceError(
-                f"OpenRouter returned error {response.status_code}: {response.text}"
+                f"OpenRouter returned error {response.status_code}: "
+                f"{response.text}"
             )
 
-        data: dict[str, Any] = response.json()
+        try:
+            data: dict[str, Any] = response.json()
+        except ValueError as exc:
+            raise ExternalServiceError(
+                "OpenRouter returned invalid JSON"
+            ) from exc
 
         try:
-            return data["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ExternalServiceError(
                 "Invalid response format from OpenRouter"
             ) from exc
+
+        if isinstance(content, str):
+            return content.strip()
+
+        if isinstance(content, list):
+            text_parts: list[str] = []
+
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text = item.get("text")
+                    if isinstance(text, str) and text.strip():
+                        text_parts.append(text.strip())
+
+            if text_parts:
+                return "\n".join(text_parts)
+
+        raise ExternalServiceError(
+            "OpenRouter response does not contain text content"
+        )

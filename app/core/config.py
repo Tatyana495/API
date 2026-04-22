@@ -1,4 +1,6 @@
-from pydantic import Field
+from typing import Any
+
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,9 +14,12 @@ class Settings(BaseSettings):
 
     sqlite_path: str = Field(default="app.db")
 
+    cors_enabled: bool = Field(default=True)
+    cors_allow_origins: list[str] = Field(default_factory=lambda: ["*"])
+
     openrouter_api_key: str = Field(default="")
     openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1")
-    openrouter_model: str = Field(default="openai/gpt-4o-mini")
+    openrouter_model: str = Field(default="stepfun/step-3.5-flash:free")
     openrouter_referer: str = Field(default="http://localhost:8000")
     openrouter_title: str = Field(default="llm-p")
 
@@ -24,9 +29,35 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @field_validator("cors_allow_origins", mode="before")
+    @classmethod
+    def parse_cors_allow_origins(cls, value: Any) -> list[str]:
+        if value is None or value == "":
+            return []
+
+        if isinstance(value, list):
+            return value
+
+        if isinstance(value, str):
+            value = value.strip()
+
+            if not value:
+                return []
+
+            if value == "*":
+                return ["*"]
+
+            if value.startswith("[") and value.endswith("]"):
+                import json
+
+                parsed = json.loads(value)
+                if not isinstance(parsed, list):
+                    raise ValueError("cors_allow_origins must be a list")
+                return [str(item).strip() for item in parsed if str(item).strip()]
+
+            return [item.strip() for item in value.split(",") if item.strip()]
+
+        raise ValueError("Invalid cors_allow_origins format")
+
 
 settings = Settings()
-print("OPENROUTER_API_KEY exists:", bool(settings.openrouter_api_key))
-print("OPENROUTER_API_KEY len:", len(settings.openrouter_api_key or ""))
-print("OPENROUTER_BASE_URL:", settings.openrouter_base_url)
-print("OPENROUTER_MODEL:", settings.openrouter_model)

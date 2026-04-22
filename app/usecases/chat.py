@@ -34,6 +34,7 @@ class ChatUseCase:
             user_id=user_id,
             limit=max_history,
         )
+
         for message in history:
             messages.append(
                 {
@@ -49,17 +50,16 @@ class ChatUseCase:
             }
         )
 
-        await self._chat_repository.add_message(
-            user_id=user_id,
-            role="user",
-            content=prompt,
-        )
-
         answer = await self._openrouter_client.create_chat_completion(
             messages=messages,
             temperature=temperature,
         )
 
+        await self._chat_repository.add_message(
+            user_id=user_id,
+            role="user",
+            content=prompt,
+        )
         await self._chat_repository.add_message(
             user_id=user_id,
             role="assistant",
