@@ -49,16 +49,13 @@ class OpenRouterClient:
 
         if response.status_code >= 400:
             raise ExternalServiceError(
-                f"OpenRouter returned error {response.status_code}: "
-                f"{response.text}"
+                f"OpenRouter returned error {response.status_code}: {response.text}"
             )
 
         try:
             data: dict[str, Any] = response.json()
         except ValueError as exc:
-            raise ExternalServiceError(
-                "OpenRouter returned invalid JSON"
-            ) from exc
+            raise ExternalServiceError("OpenRouter returned invalid JSON") from exc
 
         try:
             content = data["choices"][0]["message"]["content"]
@@ -82,6 +79,4 @@ class OpenRouterClient:
             if text_parts:
                 return "\n".join(text_parts)
 
-        raise ExternalServiceError(
-            "OpenRouter response does not contain text content"
-        )
+        raise ExternalServiceError("OpenRouter response does not contain text content")
