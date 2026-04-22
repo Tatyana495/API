@@ -5,6 +5,7 @@
 ## Описание проекта
 
 Приложение реализует:
+
 - регистрацию пользователя;
 - аутентификацию и выдачу JWT access token;
 - доступ к защищённым эндпоинтам через авторизацию в Swagger;
@@ -48,7 +49,7 @@ app/
 
 Проект использует настройки из файла `.env`.
 
-Создайте `.env` в корне проекта:
+Создайте файл `.env` в корне проекта:
 
 ```env
 APP_NAME=llm-p
@@ -90,15 +91,24 @@ uv venv
 ### 3. Активация виртуального окружения
 
 **Windows PowerShell**
+
 ```powershell
 .venv\Scripts\Activate.ps1
 ```
 
 ### 4. Установка зависимостей
 
+Вариант, соответствующий требованиям задания:
+
 ```bash
 uv pip compile pyproject.toml -o requirements.txt
 uv pip install -r requirements.txt
+```
+
+Альтернативно можно использовать:
+
+```bash
+uv sync
 ```
 
 ### 5. Запуск приложения
@@ -108,6 +118,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 После запуска будут доступны:
+
 - Swagger UI: `http://127.0.0.1:8000/docs`
 - OpenAPI schema: `http://127.0.0.1:8000/openapi.json`
 
@@ -118,6 +129,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### Аутентификация
 
 #### `POST /auth/register`
+
 Регистрация нового пользователя.
 
 Пример тела запроса:
@@ -130,11 +142,13 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### `POST /auth/login`
+
 Вход в систему и получение JWT access token.
 
 Используется `application/x-www-form-urlencoded`.
 
 Поля формы:
+
 - `grant_type=password`
 - `username=student_demyanov@email.com`
 - `password=12345678`
@@ -149,6 +163,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### `GET /auth/me`
+
 Получение данных текущего пользователя.
 
 Требует авторизацию.
@@ -158,6 +173,7 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ### Чат
 
 #### `POST /chat`
+
 Отправка запроса к LLM через OpenRouter.
 
 Требует авторизацию.
@@ -182,11 +198,13 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 #### `GET /chat/history`
+
 Получение истории диалога текущего пользователя.
 
 Требует авторизацию.
 
 #### `DELETE /chat/history`
+
 Удаление истории диалога текущего пользователя.
 
 Требует авторизацию.
@@ -202,6 +220,7 @@ http://127.0.0.1:8000/docs
 ```
 
 Порядок проверки:
+
 1. Выполнить `POST /auth/register`
 2. Выполнить `POST /auth/login`
 3. Нажать кнопку **Authorize**
@@ -219,6 +238,8 @@ student_demyanov@email.com
 ---
 
 ## Демонстрация работы эндпоинтов
+
+> Все скриншоты должны быть размещены в папке `images` в корне проекта.
 
 ### 1. Регистрация пользователя `POST /auth/register`
 
@@ -319,21 +340,45 @@ curl -X DELETE "http://127.0.0.1:8000/chat/history" \
 
 ---
 
+## Проверка качества кода
+
+После завершения разработки проект был проверен с помощью линтера **Ruff**.
+
+Команды для проверки:
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+```
+
+Для автоматического исправления форматирования:
+
+```bash
+uv run ruff format .
+```
+
+---
+
 ## Возможные ошибки
 
 ### `401 Unauthorized`
+
 Токен отсутствует, недействителен или истёк.
 
 ### `409 Conflict`
+
 Пользователь с таким email уже существует.
 
 ### `422 Validation Error`
+
 Некорректный формат входных данных.
 
 ### `502 Bad Gateway`
+
 Ошибка при обращении к OpenRouter.
 
 Возможные причины:
+
 - не задан `OPENROUTER_API_KEY`;
 - неверный API-ключ;
 - недоступна выбранная модель;
@@ -344,6 +389,7 @@ curl -X DELETE "http://127.0.0.1:8000/chat/history" \
 ## Результат
 
 Проект демонстрирует:
+
 - корректную структуру FastAPI-приложения;
 - разделение на слои `api / usecases / repositories / services`;
 - JWT-аутентификацию и авторизацию;
